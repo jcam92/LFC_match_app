@@ -34,7 +34,7 @@ def load_data():
         df = pd.json_normalize(matches)
         
         # Filter for Liverpool FC matches
-        df_liverpool = df[(df['homeTeam_name'] == 'Liverpool FC') | (df['awayTeam_name'] == 'Liverpool FC')]
+        df_liverpool = df[(df['homeTeam.name'] == 'Liverpool FC') | (df['awayTeam.name'] == 'Liverpool FC')]
         
         # Debugging information for terminal
         print(f"Liverpool FC Matches Dataframe:\n{df_liverpool.head()}")
@@ -48,18 +48,22 @@ df_flat = load_data()
 
 if not df_flat.empty:
     # Display the data
-    st.write(df_flat[['utcDate', 'homeTeam_name', 'awayTeam_name', 'score_fullTime_homeTeam', 'score_fullTime_awayTeam']])
+    st.write(df_flat[['utcDate', 'homeTeam.name', 'awayTeam.name', 'score.fullTime.homeTeam', 'score.fullTime.awayTeam']])
 
     # Calculate and display statistics
     st.subheader("Liverpool Match Statistics:")
 
-    wins = df_flat[(df_flat['homeTeam.name'] == 'Liverpool FC') & (df_flat['score_fullTime_homeTeam'] > df_flat['score_fullTime_awayTeam']) |
-                   (df_flat['awayTeam.name'] == 'Liverpool FC') & (df_flat['score_fullTime_awayTeam'] > df_flat['score_fullTime)homeTeam'])].shape[0]
+    wins = df_flat[
+        ((df_flat['homeTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.homeTeam'] > df_flat['score.fullTime.awayTeam'])) |
+        ((df_flat['awayTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.awayTeam'] > df_flat['score.fullTime.homeTeam']))
+    ].shape[0]
     
     draws = df_flat[df_flat['score.fullTime.homeTeam'] == df_flat['score.fullTime.awayTeam']].shape[0]
     
-    losses = df_flat[(df_flat['homeTeam_name'] == 'Liverpool FC') & (df_flat['score_fullTime_homeTeam'] < df_flat['score_fullTime_awayTeam']) |
-                     (df_flat['awayTeam_name'] == 'Liverpool FC') & (df_flat['score_fullTime_awayTeam'] < df_flat['score_fullTime_homeTeam'])].shape[0]
+    losses = df_flat[
+        ((df_flat['homeTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.homeTeam'] < df_flat['score.fullTime.awayTeam'])) |
+        ((df_flat['awayTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.awayTeam'] < df_flat['score.fullTime.homeTeam']))
+    ].shape[0]
 
     st.write(f"Wins: {wins}")
     st.write(f"Draws: {draws}")
