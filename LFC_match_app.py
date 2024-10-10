@@ -24,7 +24,7 @@ df_flat = load_data()
 st.write(df_flat.columns)
 
 # Define the required columns
-required_columns = ['utcDate', 'homeTeam.name', 'awayTeam.name', 'score.fullTime.homeTeam', 'score.fullTime.awayTeam']
+required_columns = ['utcDate', 'homeTeam_name', 'awayTeam_name', 'score_fullTime_homeTeam', 'score_fullTime_awayTeam']
 missing_columns = [col for col in required_columns if col not in df_flat.columns]
 
 # Display missing columns or the table
@@ -34,9 +34,9 @@ else:
     st.write(df_flat[required_columns])
 
 # Calculate and display stats
-wins = len(df_flat[df_flat['score.fullTime.homeTeam'] > df_flat['score.fullTime.awayTeam']])
-draws = len(df_flat[df_flat['score.fullTime.homeTeam'] == df_flat['score.fullTime.awayTeam']])
-losses = len(df_flat[df_flat['score.fullTime.homeTeam'] < df_flat['score.fullTime.awayTeam']])
+wins = len(df_flat[df_flat['score_fullTime_homeTeam'] > df_flat['score_fullTime_awayTeam']])
+draws = len(df_flat[df_flat['score_fullTime_homeTeam'] == df_flat['score_fullTime_awayTeam']])
+losses = len(df_flat[df_flat['score_fullTime_homeTeam'] < df_flat['score_fullTime_awayTeam']])
 
 st.write("Liverpool Match Statistics:")
 st.write(f"Wins: {wins}")
