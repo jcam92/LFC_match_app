@@ -40,10 +40,6 @@ def load_data():
 df_flat = load_data()
 
 if not df_flat.empty:
-    # Display the columns to verify what is available
-    st.write("Columns in the dataset:")
-    st.write(df_flat.columns.tolist())
-
     # Display the data using correct column names
     st.write(df_flat[['utcDate', 'homeTeam.name', 'awayTeam.name', 'score.fullTime.home', 'score.fullTime.away']])
 
