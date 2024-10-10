@@ -40,34 +40,30 @@ def load_data():
 df_flat = load_data()
 
 if not df_flat.empty:
-    # Print the column names to inspect what is available
+    # Display the columns to verify what is available
     st.write("Columns in the dataset:")
-    st.write(df_flat.columns.tolist())  # Show column names in Streamlit
+    st.write(df_flat.columns.tolist())
 
-    # Try accessing the specific columns
-    if all(col in df_flat.columns for col in ['utcDate', 'homeTeam.name', 'awayTeam.name', 'score.fullTime.homeTeam', 'score.fullTime.awayTeam']):
-        # Display the data
-        st.write(df_flat[['utcDate', 'homeTeam.name', 'awayTeam.name', 'score.fullTime.homeTeam', 'score.fullTime.awayTeam']])
-        
-        # Calculate and display statistics
-        st.subheader("Liverpool Match Statistics:")
+    # Display the data using correct column names
+    st.write(df_flat[['utcDate', 'homeTeam.name', 'awayTeam.name', 'score.fullTime.home', 'score.fullTime.away']])
 
-        wins = df_flat[
-            ((df_flat['homeTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.homeTeam'] > df_flat['score.fullTime.awayTeam'])) |
-            ((df_flat['awayTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.awayTeam'] > df_flat['score.fullTime.homeTeam']))
-        ].shape[0]
-        
-        draws = df_flat[df_flat['score.fullTime.homeTeam'] == df_flat['score.fullTime.awayTeam']].shape[0]
-        
-        losses = df_flat[
-            ((df_flat['homeTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.homeTeam'] < df_flat['score.fullTime.awayTeam'])) |
-            ((df_flat['awayTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.awayTeam'] < df_flat['score.fullTime.homeTeam']))
-        ].shape[0]
+    # Calculate and display statistics
+    st.subheader("Liverpool Match Statistics:")
 
-        st.write(f"Wins: {wins}")
-        st.write(f"Draws: {draws}")
-        st.write(f"Losses: {losses}")
-    else:
-        st.write("Required columns are missing in the dataset.")
+    wins = df_flat[
+        ((df_flat['homeTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.home'] > df_flat['score.fullTime.away'])) |
+        ((df_flat['awayTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.away'] > df_flat['score.fullTime.home']))
+    ].shape[0]
+    
+    draws = df_flat[df_flat['score.fullTime.home'] == df_flat['score.fullTime.away']].shape[0]
+    
+    losses = df_flat[
+        ((df_flat['homeTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.home'] < df_flat['score.fullTime.away'])) |
+        ((df_flat['awayTeam.name'] == 'Liverpool FC') & (df_flat['score.fullTime.away'] < df_flat['score.fullTime.home']))
+    ].shape[0]
+
+    st.write(f"Wins: {wins}")
+    st.write(f"Draws: {draws}")
+    st.write(f"Losses: {losses}")
 else:
     st.write("No matches found or unable to fetch data.")
