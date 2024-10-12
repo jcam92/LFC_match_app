@@ -164,7 +164,7 @@ ensemble_classifier = VotingClassifier(
 )
 
 # Train the ensemble model
-ensemble_classifier.fit(X_train_resampled, y_train_resampled)
+ensemble_classifier.fit(X_train_resampled, y_train_resampled) 
 
 # Make predictions using the ensemble
 y_pred = ensemble_classifier.predict(X_test_scaled)
