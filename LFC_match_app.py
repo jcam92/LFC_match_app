@@ -4,7 +4,14 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score
+from imblearn.over_sampling import SMOTE
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.svm import SVC
+from sklearn.ensemble import VotingClassifier
+import matplotlib.pyplot as plt
+import numpy as np
+
 # Set up the page title
 st.title("Liverpool FC Match Analysis")
 
@@ -40,6 +47,12 @@ def load_data():
         df_liverpool['opponent'] = df_liverpool.apply(lambda row: row['awayTeam.name'] if row['is_home'] else row['homeTeam.name'], axis=1)
         df_liverpool['goal_difference'] = df_liverpool.apply(lambda row: row['score.fullTime.home'] - row['score.fullTime.away'] if row['is_home'] else row['score.fullTime.away'] - row['score.fullTime.home'], axis=1)
         df_liverpool['result'] = df_liverpool['goal_difference'].apply(lambda x: 'win' if x > 0 else ('draw' if x == 0 else 'loss'))
+         # Add form (last 3 matches)
+        df_liverpool['form'] = df_liverpool['result'].rolling(window=3, min_periods=1).apply(lambda x: sum(x == 'win') - sum(x == 'loss')).shift(1)
+    
+    # Add goal scoring and conceding averages
+        df_liverpool['avg_goals_scored'] = df_liverpool['goal_difference'].apply(lambda x: max(x, 0)).rolling(window=3, min_periods=1).mean().shift(1)
+        df_liverpool['avg_goals_conceded'] = df_liverpool['goal_difference'].apply(lambda x: max(-x, 0)).rolling(window=3, min_periods=1).mean().shift(1)
         return df_liverpool
     else:
         return pd.DataFrame()
@@ -71,9 +84,9 @@ if not df_flat.empty:
     st.write(f"Losses: {losses}")
 
 # Prepare data for machine learning
-    features = ['is_home']
-    X = pd.get_dummies(df_flat[['is_home', 'opponent']], columns=['opponent'])
-    y = df_flat['result']
+features = ['is_home', 'form', 'avg_goals_scored', 'avg_goals_conceded']
+X = pd.get_dummies(df_flat[features + ['opponent']], columns=['opponent'])
+y = df_flat['result']
 
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -85,13 +98,21 @@ if not df_flat.empty:
 
     # Train a Random Forest Classifier
     rf_classifier = RandomForestClassifier(n_estimators=100, random_state=42)
-    rf_classifier.fit(X_train_scaled, y_train)
+
+    # After splitting the data
+    smote = SMOTE(random_state=42)
+    X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+
+    # Train the model on the resampled data
+    rf_classifier.fit(X_train_resampled, y_train_resampled)
 
     # Make predictions
     y_pred = rf_classifier.predict(X_test_scaled)
     # Display model performance
     st.subheader("Machine Learning Model Performance:")
     st.write(f"Accuracy: {accuracy_score(y_test, y_pred):.2f}")
+    st.write(f"Balanced Accuracy: {balanced_accuracy_score(y_test, y_pred):.2f}")
+    st.write(f"F1 Score: {f1_score(y_test, y_pred, average='weighted'):.2f}")
     st.write("Classification Report:")
     st.code(classification_report(y_test, y_pred))
 
@@ -101,13 +122,50 @@ if not df_flat.empty:
     is_home = st.checkbox("Is it a home game?")
 
     if st.button("Predict"):
-        input_data = pd.DataFrame({'is_home': [is_home]})
-        input_data = pd.get_dummies(input_data.assign(opponent=opponent), columns=['opponent'])
-        input_data = input_data.reindex(columns=X.columns, fill_value=0)
-        input_scaled = scaler.transform(input_data)
-        prediction = rf_classifier.predict(input_scaled)
-        st.write(f"Predicted outcome: {prediction[0]}")
+        try:
+            input_data = pd.DataFrame({'is_home': [is_home], 'form': [0], 'avg_goals_scored': [0], 'avg_goals_conceded': [0]})
+            input_data = pd.get_dummies(input_data.assign(opponent=opponent), columns=['opponent'])
+            input_data = input_data.reindex(columns=X.columns, fill_value=0)
+            input_scaled = scaler.transform(input_data)
+            prediction = rf_classifier.predict(input_scaled)
+            probabilities = rf_classifier.predict_proba(input_scaled)[0]
+            st.write(f"Predicted outcome: {prediction[0]}")
+            st.write(f"Probabilities: Win: {probabilities[2]:.2f}, Draw: {probabilities[0]:.2f}, Loss: {probabilities[1]:.2f}")
+        except Exception as e:
+            st.write(f"An error occurred: {str(e)}")
 
+    # After training the model
+    feature_importance = rf_classifier.feature_importances_
+    feature_names = X.columns
+
+    # Sort features by importance
+    sorted_idx = feature_importance.argsort()
+    pos = np.arange(sorted_idx.shape[0]) + .5
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.barh(pos, feature_importance[sorted_idx], align='center')
+    ax.set_yticks(pos)
+    ax.set_yticklabels(feature_names[sorted_idx])
+    ax.set_xlabel('Feature Importance')
+    ax.set_title('Feature Importance for Liverpool FC Match Prediction')
+
+    st.pyplot(fig)
 
 else:
     st.write("No matches found or unable to fetch data.")
+
+rf_classifier = RandomForestClassifier(n_estimators=100, random_state=42)
+gb_classifier = GradientBoostingClassifier(n_estimators=100, random_state=42)
+svm_classifier = SVC(probability=True, random_state=42)
+
+ensemble_classifier = VotingClassifier(
+    estimators=[('rf', rf_classifier), ('gb', gb_classifier), ('svm', svm_classifier)],
+    voting='soft'
+)
+
+# Train the ensemble model
+ensemble_classifier.fit(X_train_resampled, y_train_resampled)
+
+# Make predictions using the ensemble
+y_pred = ensemble_classifier.predict(X_test_scaled)
+
