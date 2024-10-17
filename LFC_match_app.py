@@ -130,12 +130,13 @@ if not df_flat.empty:
     features = ['is_home', 'form', 'avg_goals_scored', 'avg_goals_conceded']
     X = pd.get_dummies(df_flat[features + ['opponent']], columns=['opponent'])
 
-    # Use LabelEncoder instead of one-hot encoding for the target variable
+    # Use LabelEncoder for the target variable
     le = LabelEncoder()
     y = le.fit_transform(df_flat['result'])
 
     # Print unique values in the target variable
-    st.write("Unique values in the target variable:", le.classes_)
+    st.write("Unique values in the target variable after encoding:", np.unique(y))
+    st.write("Classes:", le.classes_)
     st.write("Shape of X:", X.shape)
     st.write("Shape of y:", y.shape)
 
@@ -169,7 +170,10 @@ if not df_flat.empty:
     st.write(f"Balanced Accuracy: {balanced_accuracy_score(y_test, y_pred):.2f}")
     st.write(f"F1 Score: {f1_score(y_test, y_pred, average='weighted'):.2f}")
     st.write("Classification Report:")
-    st.code(classification_report(y_test, y_pred, target_names=le.classes_))
+    if len(le.classes_) > 1:
+        st.code(classification_report(y_test, y_pred, target_names=le.classes_))
+    else:
+        st.write("Only one class present in the target variable. Classification report cannot be generated.")
 
     # Allow user to make predictions
     st.subheader("Predict Next Match:")
@@ -183,12 +187,15 @@ if not df_flat.empty:
             input_data = input_data.reindex(columns=X.columns, fill_value=0)
             input_scaled = scaler.transform(input_data)
             prediction = ensemble_classifier.predict(input_scaled)
-            probabilities = ensemble_classifier.predict_proba(input_scaled)[0]
             
             st.write(f"Predicted outcome: {le.inverse_transform(prediction)[0]}")
             
-            for class_name, prob in zip(le.classes_, probabilities):
-                st.write(f"Probability of {class_name}: {prob:.2f}")
+            if len(le.classes_) > 1:
+                probabilities = ensemble_classifier.predict_proba(input_scaled)[0]
+                for class_name, prob in zip(le.classes_, probabilities):
+                    st.write(f"Probability of {class_name}: {prob:.2f}")
+            else:
+                st.write("Only one class present in the target variable. Probabilities cannot be calculated.")
             
         except Exception as e:
             st.write(f"An error occurred during prediction: {str(e)}")
@@ -222,15 +229,18 @@ if not df_flat.empty:
     sns.boxplot(x='result', y='form', data=df_flat, ax=ax)
     st.pyplot(fig)
 
-    st.subheader("Confusion Matrix")
-    cm = confusion_matrix(y_test, y_pred)
-    fig, ax = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt='d', ax=ax, cmap='Blues')
-    ax.set_xlabel('Predicted')
-    ax.set_ylabel('Actual')
-    ax.set_xticklabels(le.classes_)
-    ax.set_yticklabels(le.classes_)
-    st.pyplot(fig)
+    if len(le.classes_) > 1:
+        st.subheader("Confusion Matrix")
+        cm = confusion_matrix(y_test, y_pred)
+        fig, ax = plt.subplots()
+        sns.heatmap(cm, annot=True, fmt='d', ax=ax, cmap='Blues')
+        ax.set_xlabel('Predicted')
+        ax.set_ylabel('Actual')
+        ax.set_xticklabels(le.classes_)
+        ax.set_yticklabels(le.classes_)
+        st.pyplot(fig)
+    else:
+        st.write("Only one class present in the target variable. Confusion matrix cannot be generated.")
 
     st.subheader("Team Comparison")
     team1 = st.selectbox("Select first team:", df_flat['opponent'].unique(), key='team1')
