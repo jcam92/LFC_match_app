@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
 from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score, confusion_matrix
 from sklearn.svm import SVC
@@ -129,10 +129,13 @@ if not df_flat.empty:
     # Prepare data for machine learning
     features = ['is_home', 'form', 'avg_goals_scored', 'avg_goals_conceded']
     X = pd.get_dummies(df_flat[features + ['opponent']], columns=['opponent'])
-    y = pd.get_dummies(df_flat['result'])  # One-hot encode the target variable
+
+    # Use LabelEncoder instead of one-hot encoding for the target variable
+    le = LabelEncoder()
+    y = le.fit_transform(df_flat['result'])
 
     # Print unique values in the target variable
-    st.write("Unique values in the target variable:", df_flat['result'].unique())
+    st.write("Unique values in the target variable:", le.classes_)
     st.write("Shape of X:", X.shape)
     st.write("Shape of y:", y.shape)
 
@@ -166,7 +169,7 @@ if not df_flat.empty:
     st.write(f"Balanced Accuracy: {balanced_accuracy_score(y_test, y_pred):.2f}")
     st.write(f"F1 Score: {f1_score(y_test, y_pred, average='weighted'):.2f}")
     st.write("Classification Report:")
-    st.code(classification_report(y_test, y_pred))
+    st.code(classification_report(y_test, y_pred, target_names=le.classes_))
 
     # Allow user to make predictions
     st.subheader("Predict Next Match:")
@@ -182,20 +185,10 @@ if not df_flat.empty:
             prediction = ensemble_classifier.predict(input_scaled)
             probabilities = ensemble_classifier.predict_proba(input_scaled)[0]
             
-            st.write(f"Predicted outcome: {prediction[0]}")
+            st.write(f"Predicted outcome: {le.inverse_transform(prediction)[0]}")
             
-            # Check the number of classes
-            if len(probabilities) == 2:
-                st.write(f"Probabilities: Class 0: {probabilities[0]:.2f}, Class 1: {probabilities[1]:.2f}")
-                st.write("Note: The model has predicted only two classes. You may need to check your data encoding.")
-            elif len(probabilities) == 3:
-                st.write(f"Probabilities: Win: {probabilities[2]:.2f}, Draw: {probabilities[0]:.2f}, Loss: {probabilities[1]:.2f}")
-            else:
-                st.write(f"Probabilities: {probabilities}")
-                st.write("Note: Unexpected number of probability values. Please check your model and data encoding.")
-            
-            # Print unique values in the target variable
-            st.write("Unique values in the target variable:", y.unique())
+            for class_name, prob in zip(le.classes_, probabilities):
+                st.write(f"Probability of {class_name}: {prob:.2f}")
             
         except Exception as e:
             st.write(f"An error occurred during prediction: {str(e)}")
