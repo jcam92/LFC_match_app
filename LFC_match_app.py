@@ -223,22 +223,50 @@ if not df_flat.empty:
     st.pyplot(fig)
 
     st.subheader("Confusion Matrix")
-    cm = confusion_matrix(y_test.argmax(axis=1), y_pred.argmax(axis=1))
+    cm = confusion_matrix(y_test, y_pred)
     fig, ax = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt='d', ax=ax)
+    sns.heatmap(cm, annot=True, fmt='d', ax=ax, cmap='Blues')
     ax.set_xlabel('Predicted')
     ax.set_ylabel('Actual')
+    ax.set_xticklabels(le.classes_)
+    ax.set_yticklabels(le.classes_)
     st.pyplot(fig)
 
     st.subheader("Team Comparison")
-    team1 = st.selectbox("Select first team:", df_flat['opponent'].unique())
-    team2 = st.selectbox("Select second team:", df_flat['opponent'].unique())
+    team1 = st.selectbox("Select first team:", df_flat['opponent'].unique(), key='team1')
+    team2 = st.selectbox("Select second team:", df_flat['opponent'].unique(), key='team2')
 
     team1_data = df_flat[df_flat['opponent'] == team1]
     team2_data = df_flat[df_flat['opponent'] == team2]
 
-    st.write(f"{team1} average goals scored: {team1_data['avg_goals_scored'].mean():.2f}")
-    st.write(f"{team2} average goals scored: {team2_data['avg_goals_scored'].mean():.2f}")
+    st.write(f"{team1} statistics:")
+    st.write(f"Average goals scored against: {team1_data['avg_goals_scored'].mean():.2f}")
+    st.write(f"Average goals conceded: {team1_data['avg_goals_conceded'].mean():.2f}")
+    st.write(f"Win rate: {(team1_data['result'] == 'loss').mean():.2%}")
+
+    st.write(f"\n{team2} statistics:")
+    st.write(f"Average goals scored against: {team2_data['avg_goals_scored'].mean():.2f}")
+    st.write(f"Average goals conceded: {team2_data['avg_goals_conceded'].mean():.2f}")
+    st.write(f"Win rate: {(team2_data['result'] == 'loss').mean():.2%}")
+
+    # Visualize the comparison
+    fig, ax = plt.subplots(figsize=(10, 6))
+    x = np.arange(3)
+    width = 0.35
+
+    team1_stats = [team1_data['avg_goals_scored'].mean(), team1_data['avg_goals_conceded'].mean(), (team1_data['result'] == 'loss').mean()]
+    team2_stats = [team2_data['avg_goals_scored'].mean(), team2_data['avg_goals_conceded'].mean(), (team2_data['result'] == 'loss').mean()]
+
+    ax.bar(x - width/2, team1_stats, width, label=team1)
+    ax.bar(x + width/2, team2_stats, width, label=team2)
+
+    ax.set_ylabel('Values')
+    ax.set_title('Team Comparison')
+    ax.set_xticks(x)
+    ax.set_xticklabels(['Avg Goals Scored', 'Avg Goals Conceded', 'Win Rate'])
+    ax.legend()
+
+    st.pyplot(fig)
 
 else:
     st.write("No matches found or unable to fetch data.")
