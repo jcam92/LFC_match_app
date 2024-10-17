@@ -165,8 +165,22 @@ if not df_flat.empty:
             input_scaled = scaler.transform(input_data)
             prediction = ensemble_classifier.predict(input_scaled)
             probabilities = ensemble_classifier.predict_proba(input_scaled)[0]
+            
             st.write(f"Predicted outcome: {prediction[0]}")
-            st.write(f"Probabilities: Win: {probabilities[2]:.2f}, Draw: {probabilities[0]:.2f}, Loss: {probabilities[1]:.2f}")
+            
+            # Check the number of classes
+            if len(probabilities) == 2:
+                st.write(f"Probabilities: Class 0: {probabilities[0]:.2f}, Class 1: {probabilities[1]:.2f}")
+                st.write("Note: The model has predicted only two classes. You may need to check your data encoding.")
+            elif len(probabilities) == 3:
+                st.write(f"Probabilities: Win: {probabilities[2]:.2f}, Draw: {probabilities[0]:.2f}, Loss: {probabilities[1]:.2f}")
+            else:
+                st.write(f"Probabilities: {probabilities}")
+                st.write("Note: Unexpected number of probability values. Please check your model and data encoding.")
+            
+            # Print unique values in the target variable
+            st.write("Unique values in the target variable:", y.unique())
+            
         except Exception as e:
             st.write(f"An error occurred during prediction: {str(e)}")
             st.write("Error traceback:", traceback.format_exc())
