@@ -6,7 +6,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
 from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score
 from sklearn.svm import SVC
-from imblearn.over_sampling import SMOTE
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -44,14 +43,24 @@ def load_data():
             # Add new features
             df_liverpool['is_home'] = df_liverpool['homeTeam.name'] == 'Liverpool FC'
             df_liverpool['opponent'] = df_liverpool.apply(lambda row: row['awayTeam.name'] if row['is_home'] else row['homeTeam.name'], axis=1)
+            
+            # Ensure score columns are numeric
+            df_liverpool['score.fullTime.home'] = pd.to_numeric(df_liverpool['score.fullTime.home'], errors='coerce')
+            df_liverpool['score.fullTime.away'] = pd.to_numeric(df_liverpool['score.fullTime.away'], errors='coerce')
+            
             df_liverpool['goal_difference'] = df_liverpool.apply(lambda row: row['score.fullTime.home'] - row['score.fullTime.away'] if row['is_home'] else row['score.fullTime.away'] - row['score.fullTime.home'], axis=1)
             df_liverpool['result'] = df_liverpool['goal_difference'].apply(lambda x: 'win' if x > 0 else ('draw' if x == 0 else 'loss'))
+            
             # Add form (last 3 matches)
             df_liverpool['form'] = df_liverpool['result'].rolling(window=3, min_periods=1).apply(lambda x: sum(x == 'win') - sum(x == 'loss')).shift(1)
         
             # Add goal scoring and conceding averages
-            df_liverpool['avg_goals_scored'] = df_liverpool['goal_difference'].apply(lambda x: max(x, 0)).rolling(window=3, min_periods=1).mean().shift(1)
-            df_liverpool['avg_goals_conceded'] = df_liverpool['goal_difference'].apply(lambda x: max(-x, 0)).rolling(window=3, min_periods=1).mean().shift(1)
+            df_liverpool['avg_goals_scored'] = df_liverpool['goal_difference'].apply(lambda x: max(x, 0) if pd.notnull(x) else 0).rolling(window=3, min_periods=1).mean().shift(1)
+            df_liverpool['avg_goals_conceded'] = df_liverpool['goal_difference'].apply(lambda x: max(-x, 0) if pd.notnull(x) else 0).rolling(window=3, min_periods=1).mean().shift(1)
+            
+            # Fill NaN values
+            df_liverpool = df_liverpool.fillna(0)
+            
             return df_liverpool
         else:
             st.error("No data returned from fetch_matches()")
@@ -99,14 +108,10 @@ if not df_flat.empty:
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    # After splitting the data
-    smote = SMOTE(random_state=42)
-    X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
-
     # Define classifiers
-    rf_classifier = RandomForestClassifier(n_estimators=100, random_state=42)
+    rf_classifier = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
     gb_classifier = GradientBoostingClassifier(n_estimators=100, random_state=42)
-    svm_classifier = SVC(probability=True, random_state=42)
+    svm_classifier = SVC(probability=True, class_weight='balanced', random_state=42)
 
     ensemble_classifier = VotingClassifier(
         estimators=[('rf', rf_classifier), ('gb', gb_classifier), ('svm', svm_classifier)],
@@ -114,7 +119,7 @@ if not df_flat.empty:
     )
 
     # Train the ensemble model
-    ensemble_classifier.fit(X_train_resampled, y_train_resampled)
+    ensemble_classifier.fit(X_train_scaled, y_train)
 
     # Make predictions using the ensemble
     y_pred = ensemble_classifier.predict(X_test_scaled)
@@ -146,7 +151,7 @@ if not df_flat.empty:
             st.write(f"An error occurred: {str(e)}")
 
     # Feature importance plot (using Random Forest classifier)
-    rf_classifier.fit(X_train_resampled, y_train_resampled)
+    rf_classifier.fit(X_train_scaled, y_train)
     feature_importance = rf_classifier.feature_importances_
     feature_names = X.columns
 
@@ -165,5 +170,3 @@ if not df_flat.empty:
 
 else:
     st.write("No matches found or unable to fetch data.")
-
-
