@@ -58,13 +58,14 @@ def load_data():
             st.write(df_liverpool[['score.fullTime.home', 'score.fullTime.away']].head())
             
             df_liverpool['goal_difference'] = df_liverpool.apply(lambda row: row['score.fullTime.home'] - row['score.fullTime.away'] if row['is_home'] else row['score.fullTime.away'] - row['score.fullTime.home'], axis=1)
+            df_liverpool['result_numeric'] = df_liverpool['goal_difference'].apply(lambda x: 1 if x > 0 else (0 if x == 0 else -1))
             df_liverpool['result'] = df_liverpool['goal_difference'].apply(lambda x: 'win' if x > 0 else ('draw' if x == 0 else 'loss'))
             
             st.write("Goal difference and result calculated. Sample data:")
-            st.write(df_liverpool[['goal_difference', 'result']].head())
+            st.write(df_liverpool[['goal_difference', 'result', 'result_numeric']].head())
             
             # Add form (last 3 matches)
-            df_liverpool['form'] = df_liverpool['result'].rolling(window=3, min_periods=1).apply(lambda x: sum(x == 'win') - sum(x == 'loss')).shift(1)
+            df_liverpool['form'] = df_liverpool['result_numeric'].rolling(window=3, min_periods=1).sum().shift(1)
         
             # Add goal scoring and conceding averages
             df_liverpool['avg_goals_scored'] = df_liverpool['goal_difference'].apply(lambda x: max(x, 0) if pd.notnull(x) else 0).rolling(window=3, min_periods=1).mean().shift(1)
