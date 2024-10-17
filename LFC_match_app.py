@@ -8,6 +8,7 @@ from sklearn.metrics import accuracy_score, classification_report, balanced_accu
 from sklearn.svm import SVC
 import matplotlib.pyplot as plt
 import numpy as np
+import traceback
 
 # Set up the page title
 st.title("Liverpool FC Match Analysis")
@@ -26,6 +27,7 @@ def fetch_matches():
     if response.status_code == 200:
         return response.json()
     else:
+        st.error(f"Failed to fetch data. Status code: {response.status_code}")
         return None
 
 # Function to process the matches and filter for Liverpool
@@ -37,8 +39,12 @@ def load_data():
             matches = data['matches']
             df = pd.json_normalize(matches)
             
+            st.write("Data fetched successfully. Shape:", df.shape)
+            st.write("Columns:", df.columns)
+            
             # Filter for Liverpool FC matches
             df_liverpool = df[(df['homeTeam.name'] == 'Liverpool FC') | (df['awayTeam.name'] == 'Liverpool FC')]
+            st.write("Liverpool matches filtered. Shape:", df_liverpool.shape)
             
             # Add new features
             df_liverpool['is_home'] = df_liverpool['homeTeam.name'] == 'Liverpool FC'
@@ -48,8 +54,14 @@ def load_data():
             df_liverpool['score.fullTime.home'] = pd.to_numeric(df_liverpool['score.fullTime.home'], errors='coerce')
             df_liverpool['score.fullTime.away'] = pd.to_numeric(df_liverpool['score.fullTime.away'], errors='coerce')
             
+            st.write("Score columns converted to numeric. Sample data:")
+            st.write(df_liverpool[['score.fullTime.home', 'score.fullTime.away']].head())
+            
             df_liverpool['goal_difference'] = df_liverpool.apply(lambda row: row['score.fullTime.home'] - row['score.fullTime.away'] if row['is_home'] else row['score.fullTime.away'] - row['score.fullTime.home'], axis=1)
             df_liverpool['result'] = df_liverpool['goal_difference'].apply(lambda x: 'win' if x > 0 else ('draw' if x == 0 else 'loss'))
+            
+            st.write("Goal difference and result calculated. Sample data:")
+            st.write(df_liverpool[['goal_difference', 'result']].head())
             
             # Add form (last 3 matches)
             df_liverpool['form'] = df_liverpool['result'].rolling(window=3, min_periods=1).apply(lambda x: sum(x == 'win') - sum(x == 'loss')).shift(1)
@@ -58,8 +70,14 @@ def load_data():
             df_liverpool['avg_goals_scored'] = df_liverpool['goal_difference'].apply(lambda x: max(x, 0) if pd.notnull(x) else 0).rolling(window=3, min_periods=1).mean().shift(1)
             df_liverpool['avg_goals_conceded'] = df_liverpool['goal_difference'].apply(lambda x: max(-x, 0) if pd.notnull(x) else 0).rolling(window=3, min_periods=1).mean().shift(1)
             
+            st.write("Form and average goals calculated. Sample data:")
+            st.write(df_liverpool[['form', 'avg_goals_scored', 'avg_goals_conceded']].head())
+            
             # Fill NaN values
             df_liverpool = df_liverpool.fillna(0)
+            
+            st.write("Final dataframe shape:", df_liverpool.shape)
+            st.write("Final dataframe columns:", df_liverpool.columns)
             
             return df_liverpool
         else:
@@ -67,6 +85,7 @@ def load_data():
             return pd.DataFrame()
     except Exception as e:
         st.error(f"An error occurred in load_data(): {str(e)}")
+        st.write("Error traceback:", traceback.format_exc())
         return pd.DataFrame()
 
 # Load data
@@ -148,7 +167,8 @@ if not df_flat.empty:
             st.write(f"Predicted outcome: {prediction[0]}")
             st.write(f"Probabilities: Win: {probabilities[2]:.2f}, Draw: {probabilities[0]:.2f}, Loss: {probabilities[1]:.2f}")
         except Exception as e:
-            st.write(f"An error occurred: {str(e)}")
+            st.write(f"An error occurred during prediction: {str(e)}")
+            st.write("Error traceback:", traceback.format_exc())
 
     # Feature importance plot (using Random Forest classifier)
     rf_classifier.fit(X_train_scaled, y_train)
