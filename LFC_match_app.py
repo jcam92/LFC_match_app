@@ -1,13 +1,15 @@
+import streamlit as st
 import requests
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
-from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, classification_report, balanced_accuracy_score, f1_score, confusion_matrix
 from sklearn.svm import SVC
 import matplotlib.pyplot as plt
 import numpy as np
 import traceback
+import seaborn as sns
 
 # Set up the page title
 st.title("Liverpool FC Match Analysis")
@@ -216,6 +218,34 @@ if not df_flat.empty:
     ax.set_title('Feature Importance for Liverpool FC Match Prediction')
 
     st.pyplot(fig)
+
+    st.subheader("Goal Difference Distribution")
+    fig, ax = plt.subplots()
+    sns.histplot(df_flat['goal_difference'], kde=True, ax=ax)
+    st.pyplot(fig)
+
+    st.subheader("Form vs Result")
+    fig, ax = plt.subplots()
+    sns.boxplot(x='result', y='form', data=df_flat, ax=ax)
+    st.pyplot(fig)
+
+    st.subheader("Confusion Matrix")
+    cm = confusion_matrix(y_test.argmax(axis=1), y_pred.argmax(axis=1))
+    fig, ax = plt.subplots()
+    sns.heatmap(cm, annot=True, fmt='d', ax=ax)
+    ax.set_xlabel('Predicted')
+    ax.set_ylabel('Actual')
+    st.pyplot(fig)
+
+    st.subheader("Team Comparison")
+    team1 = st.selectbox("Select first team:", df_flat['opponent'].unique())
+    team2 = st.selectbox("Select second team:", df_flat['opponent'].unique())
+
+    team1_data = df_flat[df_flat['opponent'] == team1]
+    team2_data = df_flat[df_flat['opponent'] == team2]
+
+    st.write(f"{team1} average goals scored: {team1_data['avg_goals_scored'].mean():.2f}")
+    st.write(f"{team2} average goals scored: {team2_data['avg_goals_scored'].mean():.2f}")
 
 else:
     st.write("No matches found or unable to fetch data.")
