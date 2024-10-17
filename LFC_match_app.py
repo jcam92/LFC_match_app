@@ -1,4 +1,3 @@
-import streamlit as st
 import requests
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -50,37 +49,47 @@ def load_data():
             df_liverpool['is_home'] = df_liverpool['homeTeam.name'] == 'Liverpool FC'
             df_liverpool['opponent'] = df_liverpool.apply(lambda row: row['awayTeam.name'] if row['is_home'] else row['homeTeam.name'], axis=1)
             
-            # Ensure score columns are numeric
+            # Ensure score columns are numeric and handle unplayed matches
             df_liverpool['score.fullTime.home'] = pd.to_numeric(df_liverpool['score.fullTime.home'], errors='coerce')
             df_liverpool['score.fullTime.away'] = pd.to_numeric(df_liverpool['score.fullTime.away'], errors='coerce')
             
-            st.write("Score columns converted to numeric. Sample data:")
-            st.write(df_liverpool[['score.fullTime.home', 'score.fullTime.away']].head())
+            # Identify unplayed matches
+            df_liverpool['is_played'] = df_liverpool['score.fullTime.home'].notna() & df_liverpool['score.fullTime.away'].notna()
             
+            st.write("Score columns converted to numeric. Sample data:")
+            st.write(df_liverpool[['score.fullTime.home', 'score.fullTime.away', 'is_played']].head())
+            
+            # Calculate goal difference and result only for played matches
             df_liverpool['goal_difference'] = df_liverpool.apply(lambda row: row['score.fullTime.home'] - row['score.fullTime.away'] if row['is_home'] else row['score.fullTime.away'] - row['score.fullTime.home'], axis=1)
-            df_liverpool['result_numeric'] = df_liverpool['goal_difference'].apply(lambda x: 1 if x > 0 else (0 if x == 0 else -1))
-            df_liverpool['result'] = df_liverpool['goal_difference'].apply(lambda x: 'win' if x > 0 else ('draw' if x == 0 else 'loss'))
+            df_liverpool['result'] = df_liverpool.apply(lambda row: 
+                'win' if row['is_played'] and row['goal_difference'] > 0 else
+                'draw' if row['is_played'] and row['goal_difference'] == 0 else
+                'loss' if row['is_played'] and row['goal_difference'] < 0 else
+                'not played', axis=1)
             
             st.write("Goal difference and result calculated. Sample data:")
-            st.write(df_liverpool[['goal_difference', 'result', 'result_numeric']].head())
+            st.write(df_liverpool[['goal_difference', 'result', 'is_played']].head())
             
-            # Add form (last 3 matches)
-            df_liverpool['form'] = df_liverpool['result_numeric'].rolling(window=3, min_periods=1).sum().shift(1)
+            # Add form (last 3 played matches)
+            df_liverpool['form'] = df_liverpool[df_liverpool['is_played']]['result'].replace({'win': 1, 'draw': 0, 'loss': -1}).rolling(window=3, min_periods=1).sum().shift(1)
         
-            # Add goal scoring and conceding averages
-            df_liverpool['avg_goals_scored'] = df_liverpool['goal_difference'].apply(lambda x: max(x, 0) if pd.notnull(x) else 0).rolling(window=3, min_periods=1).mean().shift(1)
-            df_liverpool['avg_goals_conceded'] = df_liverpool['goal_difference'].apply(lambda x: max(-x, 0) if pd.notnull(x) else 0).rolling(window=3, min_periods=1).mean().shift(1)
+            # Add goal scoring and conceding averages (only for played matches)
+            df_liverpool['avg_goals_scored'] = df_liverpool[df_liverpool['is_played']]['goal_difference'].apply(lambda x: max(x, 0)).rolling(window=3, min_periods=1).mean().shift(1)
+            df_liverpool['avg_goals_conceded'] = df_liverpool[df_liverpool['is_played']]['goal_difference'].apply(lambda x: max(-x, 0)).rolling(window=3, min_periods=1).mean().shift(1)
             
             st.write("Form and average goals calculated. Sample data:")
-            st.write(df_liverpool[['form', 'avg_goals_scored', 'avg_goals_conceded']].head())
+            st.write(df_liverpool[['form', 'avg_goals_scored', 'avg_goals_conceded', 'is_played']].head())
             
             # Fill NaN values
             df_liverpool = df_liverpool.fillna(0)
             
-            st.write("Final dataframe shape:", df_liverpool.shape)
-            st.write("Final dataframe columns:", df_liverpool.columns)
+            # Remove unplayed matches for model training
+            df_liverpool_played = df_liverpool[df_liverpool['is_played']]
             
-            return df_liverpool
+            st.write("Final dataframe shape (played matches only):", df_liverpool_played.shape)
+            st.write("Final dataframe columns:", df_liverpool_played.columns)
+            
+            return df_liverpool_played
         else:
             st.error("No data returned from fetch_matches()")
             return pd.DataFrame()
@@ -118,7 +127,12 @@ if not df_flat.empty:
     # Prepare data for machine learning
     features = ['is_home', 'form', 'avg_goals_scored', 'avg_goals_conceded']
     X = pd.get_dummies(df_flat[features + ['opponent']], columns=['opponent'])
-    y = df_flat['result']
+    y = pd.get_dummies(df_flat['result'])  # One-hot encode the target variable
+
+    # Print unique values in the target variable
+    st.write("Unique values in the target variable:", df_flat['result'].unique())
+    st.write("Shape of X:", X.shape)
+    st.write("Shape of y:", y.shape)
 
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
