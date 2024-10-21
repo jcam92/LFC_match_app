@@ -195,8 +195,17 @@ if not df_flat.empty:
     sns.heatmap(cm, annot=True, fmt='d', ax=ax, cmap='Blues')
     ax.set_xlabel('Predicted')
     ax.set_ylabel('Actual')
-    ax.set_xticklabels(le.inverse_transform(unique_y_pred))
-    ax.set_yticklabels(le.inverse_transform(unique_y_test))
+    
+    # Get the current tick locations and labels
+    current_ticks = ax.get_xticks()
+    
+    # Only set labels if the number of ticks matches the number of classes
+    if len(current_ticks) == len(le.classes_):
+        ax.set_xticklabels(le.classes_)
+        ax.set_yticklabels(le.classes_)
+    else:
+        st.write(f"Warning: Number of ticks ({len(current_ticks)}) doesn't match number of classes ({len(le.classes_)}). Using default labels.")
+    
     st.pyplot(fig)
 
     # Allow user to make predictions
@@ -260,8 +269,17 @@ if not df_flat.empty:
         sns.heatmap(cm, annot=True, fmt='d', ax=ax, cmap='Blues')
         ax.set_xlabel('Predicted')
         ax.set_ylabel('Actual')
-        ax.set_xticklabels(le.classes_)
-        ax.set_yticklabels(le.classes_)
+        
+        # Get the current tick locations and labels
+        current_ticks = ax.get_xticks()
+        
+        # Only set labels if the number of ticks matches the number of classes
+        if len(current_ticks) == len(le.classes_):
+            ax.set_xticklabels(le.classes_)
+            ax.set_yticklabels(le.classes_)
+        else:
+            st.write(f"Warning: Number of ticks ({len(current_ticks)}) doesn't match number of classes ({len(le.classes_)}). Using default labels.")
+        
         st.pyplot(fig)
     else:
         st.write("Only one class present in the target variable. Confusion matrix cannot be generated.")
@@ -302,6 +320,15 @@ if not df_flat.empty:
 
     st.pyplot(fig)
 
+    # After making predictions
+    st.write("Unique values in y_test:", np.unique(y_test))
+    st.write("Unique values in y_pred:", np.unique(y_pred))
+    st.write("Shape of confusion matrix:", cm.shape)
+
+    # After calculating the result
+    st.write("Unique values in result column:", df_flat['result'].unique())
+    df_flat = df_flat[df_flat['result'] != 'not played']
+    st.write("Unique values in result column after filtering:", df_flat['result'].unique())
+
 else:
     st.write("No matches found or unable to fetch data.")
-
