@@ -304,3 +304,4 @@ if not df_flat.empty:
 
 else:
     st.write("No matches found or unable to fetch data.")
+
