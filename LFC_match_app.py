@@ -134,9 +134,13 @@ if not df_flat.empty:
     le = LabelEncoder()
     y = le.fit_transform(df_flat['result'])
 
-    # Print unique values in the target variable
-    st.write("Unique values in the target variable after encoding:", np.unique(y))
-    st.write("Classes:", le.classes_)
+    # Print information about the classes
+    st.write("Unique values in 'result' column:", df_flat['result'].unique())
+    st.write("Encoded classes:", le.classes_)
+    st.write("Class distribution:")
+    for class_name, count in zip(le.classes_, np.bincount(y)):
+        st.write(f"{class_name}: {count}")
+
     st.write("Shape of X:", X.shape)
     st.write("Shape of y:", y.shape)
 
@@ -169,11 +173,31 @@ if not df_flat.empty:
     st.write(f"Accuracy: {accuracy_score(y_test, y_pred):.2f}")
     st.write(f"Balanced Accuracy: {balanced_accuracy_score(y_test, y_pred):.2f}")
     st.write(f"F1 Score: {f1_score(y_test, y_pred, average='weighted'):.2f}")
+
+    # Check unique classes in y_test and y_pred
+    unique_y_test = np.unique(y_test)
+    unique_y_pred = np.unique(y_pred)
+
+    st.write("Unique classes in test set:", le.inverse_transform(unique_y_test))
+    st.write("Unique classes in predictions:", le.inverse_transform(unique_y_pred))
+
     st.write("Classification Report:")
-    if len(le.classes_) > 1:
+    if len(unique_y_test) == len(unique_y_pred) == len(le.classes_):
         st.code(classification_report(y_test, y_pred, target_names=le.classes_))
     else:
-        st.write("Only one class present in the target variable. Classification report cannot be generated.")
+        st.write("Warning: Mismatch in the number of classes. Generating report without target names.")
+        st.code(classification_report(y_test, y_pred))
+
+    # Confusion Matrix
+    st.subheader("Confusion Matrix")
+    cm = confusion_matrix(y_test, y_pred)
+    fig, ax = plt.subplots()
+    sns.heatmap(cm, annot=True, fmt='d', ax=ax, cmap='Blues')
+    ax.set_xlabel('Predicted')
+    ax.set_ylabel('Actual')
+    ax.set_xticklabels(le.inverse_transform(unique_y_pred))
+    ax.set_yticklabels(le.inverse_transform(unique_y_test))
+    st.pyplot(fig)
 
     # Allow user to make predictions
     st.subheader("Predict Next Match:")
